@@ -4,7 +4,12 @@ import os
 import face_recognition
 import pickle
 import cv2
+import pymongo
+import json
+from bson.json_util import dumps
+from bson.objectid import ObjectId
 from recognize_faces_images import recognizeDriverFace
+from pymongo import MongoClient
 
 try: 
     from flask import Flask, render_template, request, redirect, url_for, abort, \
@@ -28,6 +33,17 @@ finally:
 
 #
 app = Flask(__name__)
+
+conn = 'mongodb://localhost:27017'
+client = pymongo.MongoClient(conn)
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return json.JSONEncoder.default(self, o)
+
+
 #would use these to error catch stuff.
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 # set constraints for image size
 app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.png', '.jpeg'] # set only image file types to accept
@@ -77,6 +93,22 @@ def send_file(filename):
     # processedname = secure_filename(processedimage.filename)
     # processedimage.save(os.path.join(app.config['UPLOAD_FOLDER'], processedname))
     return send_from_directory("./output", "Detected.jpg")
+
+@app.route("/adj.json")
+def tester():
+
+    db = client['B-Masseys']
+    collection = db['rank']
+    rank_list = list(collection.find())
+    ranks = []
+    # rank_data = rank_list[0]
+    for r in range(len(rank_list)):
+        ranks_dict = rank_list[r]
+        ranks.append(ranks_dict)
+    
+
+    response = dumps({"nodes": JSONEncoder().encode(ranks)})
+    return response
 
 
 
